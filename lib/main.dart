@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+import 'package:workmanager/workmanager.dart';
+
+
+import 'package:flutter_dnd/flutter_dnd.dart';
 
 void main() => runApp(MaterialApp(
   home: MyApp(),
@@ -43,13 +48,15 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
       duration: Duration(minutes: timer.minutes),
     );
 
-    // ..addStatusListener((status) {
-    //     if (controller.status == AnimationStatus.dismissed) {
-    //       setState(() => isPlaying = false);
-    //     }
+    controller.addStatusListener((status) {
+      if(status == AnimationStatus.dismissed) {
+        disableDoNotDisturb();
 
-    //     print(status);
-    //   })
+        playAlarm();
+      }
+    });
+
+    startStopTimer();
   }
 
   @override
@@ -105,7 +112,6 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
                                       autofocus:true,
                                       onSubmitted: (String text) {
                                         submit();
-                                        
                                       },
                                     ),
                                     actions: <Widget>[
@@ -165,15 +171,11 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
                       animation: controller,
                       builder: (BuildContext context, Widget child) {
 
-                        return Icon(Icons.stop);
-
-                        // Icon(isPlaying
-                        // ? Icons.pause
-                        // : Icons.play_arrow);
-                      },
+                        return Icon(Icons.stop);},
                     ),
                     onPressed: () {
                       timer.isPlaying = false;
+                      disableDoNotDisturb();
 
 
                       setState(() {
@@ -195,8 +197,10 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
       ),
     );
   }
-  void startStopTimer() {
+  void startStopTimer() async {
     // setState(() => isPlaying = !isPlaying);
+
+    controller.duration = Duration(seconds: 5);
     setState(() {
       if (timer.isPlaying == true) {
         timer.isPlaying = false;
@@ -214,6 +218,18 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
               ? 1.0
               : controller.value);
     }
+
+    if (await FlutterDnd.isNotificationPolicyAccessGranted) {
+      if(timer.isPlaying) {
+        await FlutterDnd.setInterruptionFilter(FlutterDnd.INTERRUPTION_FILTER_PRIORITY);
+      }
+      else {
+        await FlutterDnd.setInterruptionFilter(FlutterDnd.INTERRUPTION_FILTER_ALL);
+      }
+    }
+    else {
+      FlutterDnd.gotoPolicySettings();
+    }
   }
 
   void submit() {
@@ -224,6 +240,42 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
     controller.reset();
     startStopTimer();
     timer.isPlaying = true;
+  }
+
+  void disableDoNotDisturb() async {
+    if (await FlutterDnd.isNotificationPolicyAccessGranted) {
+      await FlutterDnd.setInterruptionFilter(FlutterDnd.INTERRUPTION_FILTER_ALL);
+    }
+    else {
+      FlutterDnd.gotoPolicySettings();
+    }
+  }
+
+  void playAlarm() {
+    FlutterRingtonePlayer.play(
+      android: AndroidSounds.ringtone,
+      ios: IosSounds.glass,
+      looping: true, // Android only - API >= 28
+      volume: 1, // Android only - API >= 28
+      asAlarm: true, // Android only - all APIs
+    );
+
+    showDialog(context: context, builder: (context) {
+      return AlertDialog(
+        title: Text("How many minutes?"),
+        content: Text("Stop sound?"),
+        actions: <Widget>[
+          MaterialButton(
+            elevation: 5.0,
+            child: new Text("STOP!"),
+            onPressed: () {
+              FlutterRingtonePlayer.stop();
+              Navigator.pop(context);
+            },
+          )
+        ],
+      );
+    });
   }
 }
 

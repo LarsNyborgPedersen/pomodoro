@@ -69,6 +69,20 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_dnd:
+    dependency: "direct main"
+    description:
+      name: flutter_dnd
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.1.2"
+  flutter_ringtone_player:
+    dependency: "direct main"
+    description:
+      name: flutter_ringtone_player
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.0.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -177,6 +191,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.0.8"
+  workmanager:
+    dependency: "direct main"
+    description:
+      name: workmanager
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.2.2"
   xml:
     dependency: transitive
     description:
@@ -186,3 +207,4 @@ packages:
     version: "3.6.1"
 sdks:
   dart: ">=2.7.0 <3.0.0"
+  flutter: ">=1.10.0 <2.0.0"
