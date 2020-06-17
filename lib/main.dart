@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+import 'package:pomodoro/settings.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 
 import 'package:flutter_dnd/flutter_dnd.dart';
@@ -43,14 +46,17 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    //timer.minutes = await getPreferredDuration();
+
     controller = AnimationController(
       vsync: this,
       duration: Duration(minutes: timer.minutes),
     );
 
+    setPreferredDuration();
+
     controller.addStatusListener((status) {
       if(status == AnimationStatus.dismissed) {
-        disableDoNotDisturb();
 
         playAlarm();
       }
@@ -61,6 +67,7 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
     ThemeData themeData = Theme.of(context);
     return Scaffold(
       body: Padding(
@@ -68,6 +75,19 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
+            Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: EdgeInsets.all(screenWidth * 0.05),
+                child: new IconButton(
+                  iconSize: screenWidth * 0.1,
+                    icon: Icon(Icons.settings,color: Colors.white,),
+                    onPressed: () {Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => Settings()),
+                    );}),
+              ),
+            ),
             Expanded(
               child: Align(
                 alignment: FractionalOffset.center,
@@ -181,12 +201,13 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
                       setState(() {
                         controller.duration = Duration(minutes: timer.minutes);
                       });
-                      controller.reset();
+                      //This resets the timer somehow...
+                      controller.value = 1;
                       controller.reverse(
                           from: controller.value == 0.0
                               ? 1.0
                               : controller.value);
-                      controller.stop();
+                      controller.stop(canceled: true);
                     },
                   )
                 ],
@@ -235,9 +256,11 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
   void submit() {
     Navigator.of(context).pop(customController.text.toString());
     timer.minutes = int.parse(customController.text);
+    savePreferredDuration(timer.minutes);
     controller.duration = Duration(minutes: timer.minutes);
 
-    controller.reset();
+    //Somehow this resets the timer...
+    controller.value = 1;
     startStopTimer();
     timer.isPlaying = true;
   }
@@ -252,6 +275,8 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
   }
 
   void playAlarm() {
+    disableDoNotDisturb();
+    timer.isPlaying = false;
     FlutterRingtonePlayer.play(
       android: AndroidSounds.ringtone,
       ios: IosSounds.glass,
@@ -277,7 +302,20 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
       );
     });
   }
+
+  void savePreferredDuration(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'preferredDuration';
+    final value = minutes;
+    prefs.setInt(key, value);
+  }
+
+  void setPreferredDuration() async {
+    final prefs = await SharedPreferences.getInstance();
+    timer.minutes = prefs.getInt('preferredDuration') ?? 25;
+  }
 }
+
 
 class TimerPainter extends CustomPainter {
   TimerPainter({

@@ -31,6 +31,7 @@ dependencies:
   flutter_dnd: ^0.1.2
   flutter_ringtone_player: ^2.0.0
   workmanager: ^0.2.0
+  shared_preferences: ^0.4.3
 
 
 
