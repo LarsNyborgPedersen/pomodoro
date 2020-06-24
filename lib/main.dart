@@ -1,39 +1,125 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:pomodoro/settings.dart';
-import 'package:workmanager/workmanager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-
-
 import 'package:flutter_dnd/flutter_dnd.dart';
+import 'package:workmanager/workmanager.dart';
 
-void main() => runApp(MaterialApp(
-  home: MyApp(),
-  theme: ThemeData(
-    canvasColor: Colors.blueGrey,
-    iconTheme: IconThemeData(
-      color: Colors.white,
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Workmanager.initialize(callbackDispatcher, // The top level function, aka callbackDispatcher
+      isInDebugMode:
+      true // If enabled it will post a notification whenever the task is running. Handy for debugging tasks
+  );
+  print('init work manager');
+//  await Workmanager.registerOneOffTask(
+//    "1",
+//    "simpleTask",
+//    existingWorkPolicy: ExistingWorkPolicy.replace,
+////    initialDelay: Duration(seconds: 5),
+//  );
+
+  runApp(MaterialApp(
+    home: MyApp(),
+    theme: ThemeData(
+      canvasColor: Colors.blueGrey,
+      iconTheme: IconThemeData(
+        color: Colors.white,
+      ),
+      accentColor: Colors.pinkAccent,
+      brightness: Brightness.dark,
     ),
-    accentColor: Colors.pinkAccent,
-    brightness: Brightness.dark,
-  ),
-));
+  ));
+}
+
+
+void callbackDispatcher() {
+
+  Timer2 timer2 = Timer2();
+  timer2.playAlarm();
+  timer2.disableDoNotDisturb();
+
+  Navigator.push(
+    timer2.context,
+    MaterialPageRoute(builder: (context) => Settings()),
+  );
+
+  print('callbackDispatcher');
+  Workmanager.executeTask((task, inputData) {
+    Timer.periodic(Duration(seconds: 15), (Timer t) {
+      print('message each 15 second');
+
+    });
+    print("Native called background task: fucking pusher"); //simpleTask will be emitted here.
+    return Future.value(true);
+  });
+}
+
+
+
+
+
+
+
+
+
 
 class MyApp extends StatefulWidget {
   @override
   MyAppState createState() => MyAppState();
 }
 
-class Timer {
+class Timer2 {
   bool isPlaying = false;
   int minutes = 25;
+  BuildContext context;
+
+  void disableDoNotDisturb() async {
+    if (await FlutterDnd.isNotificationPolicyAccessGranted) {
+      await FlutterDnd.setInterruptionFilter(FlutterDnd.INTERRUPTION_FILTER_ALL);
+    }
+    else {
+      FlutterDnd.gotoPolicySettings();
+    }
+  }
+
+  void playAlarm() {
+    disableDoNotDisturb();
+    isPlaying = false;
+    FlutterRingtonePlayer.play(
+      android: AndroidSounds.ringtone,
+      ios: IosSounds.glass,
+      looping: true, // Android only - API >= 28
+      volume: 1, // Android only - API >= 28
+      asAlarm: true, // Android only - all APIs
+    );
+
+    showDialog(context: context, builder: (context) {
+      return AlertDialog(
+        title: Text("How many minutes?"),
+        content: Text("Stop sound?"),
+        actions: <Widget>[
+          MaterialButton(
+            elevation: 5.0,
+            child: new Text("STOP!"),
+            onPressed: () {
+              FlutterRingtonePlayer.stop();
+              Navigator.pop(context);
+            },
+          )
+        ],
+      );
+    });
+  }
 }
 
 class MyAppState extends State<MyApp> with TickerProviderStateMixin {
   AnimationController controller;
-  Timer timer = new Timer();
+  Timer2 timer = new Timer2();
   TextEditingController customController = new TextEditingController();
 
   // bool isPlaying = false;
@@ -57,16 +143,18 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
 
     controller.addStatusListener((status) {
       if(status == AnimationStatus.dismissed) {
-
-        playAlarm();
+        timer.playAlarm();
       }
     });
+
+
 
     startStopTimer();
   }
 
   @override
   Widget build(BuildContext context) {
+    timer.context = context;
     double screenWidth = MediaQuery.of(context).size.width;
     ThemeData themeData = Theme.of(context);
     return Scaffold(
@@ -195,7 +283,7 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
                     ),
                     onPressed: () {
                       timer.isPlaying = false;
-                      disableDoNotDisturb();
+                      timer.disableDoNotDisturb();
 
 
                       setState(() {
@@ -221,7 +309,16 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
   void startStopTimer() async {
     // setState(() => isPlaying = !isPlaying);
 
-    controller.duration = Duration(seconds: 5);
+    controller.duration = Duration(seconds: 8);
+
+
+    print("ENTERED: StartStopTimer\n\n");
+    Workmanager.registerOneOffTask(
+      "2",
+      alarm(),
+      initialDelay: Duration(seconds: 2),
+    );
+
     setState(() {
       if (timer.isPlaying == true) {
         timer.isPlaying = false;
@@ -265,43 +362,9 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
     timer.isPlaying = true;
   }
 
-  void disableDoNotDisturb() async {
-    if (await FlutterDnd.isNotificationPolicyAccessGranted) {
-      await FlutterDnd.setInterruptionFilter(FlutterDnd.INTERRUPTION_FILTER_ALL);
-    }
-    else {
-      FlutterDnd.gotoPolicySettings();
-    }
-  }
 
-  void playAlarm() {
-    disableDoNotDisturb();
-    timer.isPlaying = false;
-    FlutterRingtonePlayer.play(
-      android: AndroidSounds.ringtone,
-      ios: IosSounds.glass,
-      looping: true, // Android only - API >= 28
-      volume: 1, // Android only - API >= 28
-      asAlarm: true, // Android only - all APIs
-    );
 
-    showDialog(context: context, builder: (context) {
-      return AlertDialog(
-        title: Text("How many minutes?"),
-        content: Text("Stop sound?"),
-        actions: <Widget>[
-          MaterialButton(
-            elevation: 5.0,
-            child: new Text("STOP!"),
-            onPressed: () {
-              FlutterRingtonePlayer.stop();
-              Navigator.pop(context);
-            },
-          )
-        ],
-      );
-    });
-  }
+
 
   void savePreferredDuration(int minutes) async {
     final prefs = await SharedPreferences.getInstance();
@@ -314,6 +377,12 @@ class MyAppState extends State<MyApp> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     timer.minutes = prefs.getInt('preferredDuration') ?? 25;
   }
+
+  String alarm() {
+    return "alarm";
+  }
+
+
 }
 
 
